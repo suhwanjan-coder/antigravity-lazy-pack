@@ -23,10 +23,10 @@
         <i data-lucide="bot" class="logo-icon animate-pulse-slow"></i>
         <h1>AI Agent <span>Roundtable</span></h1>
       </div>
-      <div class="status-indicator">
-        <span class="status-dot green"></span>
-        <span class="status-text">三方 API 就緒 (模擬模式)</span>
-      </div>
+      <button class="status-indicator clickable" id="btn-open-settings" title="配置 API 金鑰與模型" style="background: transparent; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; color: var(--text-main); font-family: var(--font-family); font-size: 0.8rem;">
+        <span class="status-dot purple" id="status-dot"></span>
+        <span class="status-text" id="status-text">模擬模式 🎬 (點擊配置 API)</span>
+      </button>
     </header>
 
     <div class="main-layout">
@@ -191,6 +191,51 @@
       <p>&copy; 2026 AI Agent Roundtable Room. Designed for Practical, Administrative & Academic Decision Making.</p>
     </footer>
 
+  <!-- API Settings Popup Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="glass-card modal-card" style="max-width: 500px; width: 100%;">
+      <div class="card-header-container" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 14px; display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 16px;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #f0f6fc;"><i data-lucide="settings" style="color: #00f3ff;"></i> 實時 API 金鑰與模型設定</h2>
+        <button class="btn-card-close" id="close-settings-modal" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; display: flex; align-items: center;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
+        <p style="font-size: 0.82rem; color: var(--text-desc); line-height: 1.5; margin-bottom: 4px;">
+          請輸入您的 API 金鑰，系統將解鎖「實時 API 連線模式 ⚡」，在辯論時實時呼叫大模型。金鑰將<strong>僅儲存於您的本地瀏覽器 (LocalStorage)</strong>，安全且不經過任何第三方伺服器。
+        </p>
+
+        <!-- Google Gemini Key -->
+        <div class="input-group" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <label for="key-gemini" style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">
+            <span>🔧 現場實務 (Google Gemini API Key)</span>
+            <span style="font-size: 0.72rem; color: #00f3ff; font-weight: 600;">預設 Model: Gemini 1.5 Flash</span>
+          </label>
+          <input type="password" id="key-gemini" placeholder="AIzaSy..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px; color: var(--text-main); font-family: var(--font-family); font-size: 0.9rem; outline: none; width: 100%;">
+        </div>
+
+        <!-- OpenAI Key -->
+        <div class="input-group" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <label for="key-openai" style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">
+            <span>📂 組織管理 (OpenAI API Key)</span>
+            <span style="font-size: 0.72rem; color: #00ff87; font-weight: 600;">預設 Model: GPT-5.4 (gpt-4o-mini)</span>
+          </label>
+          <input type="password" id="key-openai" placeholder="sk-..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px; color: var(--text-main); font-family: var(--font-family); font-size: 0.9rem; outline: none; width: 100%;">
+        </div>
+
+        <!-- Anthropic Key -->
+        <div class="input-group" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <label for="key-anthropic" style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">
+            <span>🎓 學術實證 (Anthropic Claude Key)</span>
+            <span style="font-size: 0.72rem; color: #bd00ff; font-weight: 600;">預設 Model: Claude 4.6 Sonnet (claude-3-5)</span>
+          </label>
+          <input type="password" id="key-anthropic" placeholder="sk-ant-..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px; color: var(--text-main); font-family: var(--font-family); font-size: 0.9rem; outline: none; width: 100%;">
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 12px; width: 100%;">
+          <button id="btn-clear-keys" class="btn btn-danger" style="flex: 1.2; padding: 10px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px;"><i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> 清除金鑰 (回到模擬)</button>
+          <button id="btn-save-keys" class="btn btn-primary" style="flex: 1.8; padding: 10px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px;"><i data-lucide="save" style="width: 16px; height: 16px;"></i> 儲存並啟用連線</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

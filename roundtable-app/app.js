@@ -133,6 +133,18 @@ const DEBATE_SCRIPTS = {
 // ==========================================================================
 // 2. 狀態管理與變數
 // ==========================================================================
+// ==========================================================================
+// API 設定變數與 LocalStorage 載入
+// ==========================================================================
+let apiKeys = {
+  gemini: localStorage.getItem('rt_key_gemini') || '',
+  openai: localStorage.getItem('rt_key_openai') || '',
+  anthropic: localStorage.getItem('rt_key_anthropic') || ''
+};
+
+let liveDebateHistory = []; // 用於實時模式下保存歷史發言脈絡
+const MAX_LIVE_ROUNDS = 6; // 實時模式下總發言輪數 (與模擬一致)
+
 let currentMeetingState = 'idle'; // 'idle', 'running', 'paused', 'finished'
 let currentRound = 0;
 let debateTimer = null;
@@ -154,6 +166,14 @@ const elDirectiveText = document.getElementById('directive-text');
 const elBtnSubmitDirective = document.getElementById('btn-submit-directive');
 const elGaugeIndicator = document.getElementById('gauge-indicator');
 const elGaugeStatus = document.getElementById('gauge-status');
+const elSettingsModal = document.getElementById('settings-modal');
+const elBtnOpenSettings = document.getElementById('btn-open-settings');
+const elCloseSettingsModal = document.getElementById('close-settings-modal');
+const elBtnSaveKeys = document.getElementById('btn-save-keys');
+const elBtnClearKeys = document.getElementById('btn-clear-keys');
+const elKeyGemini = document.getElementById('key-gemini');
+const elKeyOpenai = document.getElementById('key-openai');
+const elKeyAnthropic = document.getElementById('key-anthropic');
 
 // ==========================================================================
 // 3. UI 與狀態渲染輔助函式
@@ -239,14 +259,21 @@ function startMeeting() {
     currentMode = elMode.value;
     currentRound = 0;
     elTranscript.innerHTML = ''; // 清空速記
+    liveDebateHistory = []; // 清空實時發言歷史
     
-    // 生成對應腳本
-    prepareScript();
-    
-    // 新增系統會議發起訊息
-    appendSystemMessage(`📢 會議正式發起
-    議題：【${activeTopic}】
-    模式：${getModeName(currentMode)}`);
+    if (isLiveMode()) {
+      // 實時模式發起
+      appendSystemMessage(`📢 實時 API 會議連線成功
+      議題：【${activeTopic}】
+      模式：${getModeName(currentMode)}
+      （🔧 現場實務、📂 組織管理、🎓 學術實證 已就位）`);
+    } else {
+      // 模擬腳本生成
+      prepareScript();
+      appendSystemMessage(`📢 模擬會議發起
+      議題：【${activeTopic}】
+      模式：${getModeName(currentMode)}`);
+    }
     
     updateButtonStates();
     runNextSpeaker();
@@ -294,30 +321,104 @@ function getModeName(mode) {
 }
 
 // 執行下一位發言人
-function runNextSpeaker() {
-  if (currentRound >= currentScript.length) {
-    // 會議自動自然結束
-    finishMeeting();
-    return;
-  }
-
-  const turn = currentScript[currentRound];
-  activateAgent(turn.speaker, turn.content);
-  
-  // 動態更新指針數值 (隨著討論過程分歧或拉近)
-  updateGaugeBasedOnTurn(turn.speaker);
-
-  // 將對話紀錄追加至右側側欄 (打字姬模擬)
-  appendTranscriptMessage(turn.speaker, turn.content);
-
-  currentRound++;
-
-  // 設定計時器進入下一輪發言 (模擬 5 秒發言時間)
-  debateTimer = setTimeout(() => {
-    if (currentMeetingState === 'running') {
-      runNextSpeaker();
+async function runNextSpeaker() {
+  if (isLiveMode()) {
+    // === 實時 API 決策對決流程 ===
+    if (currentRound >= MAX_LIVE_ROUNDS) {
+      finishMeeting();
+      return;
     }
-  }, 5200);
+
+    // 輪流分配發言順序：0: Clinician, 1: Administrator, 2: Academic, 3: Clinician...
+    const speakerSequence = ['clinician', 'administrator', 'academic'];
+    const currentSpeaker = speakerSequence[currentRound % 3];
+    const info = getSpeakerInfo(currentSpeaker);
+
+    // 1. 顯示 AI 專家思考中發言氣泡
+    activateAgent(currentSpeaker, '思考中...');
+
+    // 2. 構造實時發言歷史脈絡 Prompt
+    const historyText = liveDebateHistory.map(h => `[${h.badge} - ${h.role}]: ${h.content}`).join('\n');
+    let dynamicPrompt = '';
+
+    if (currentSpeaker === 'clinician') {
+      dynamicPrompt = `你現在是 🔧【現場實務專家 - ${info.name}】。你的角色是站在第一線執行同仁的立場，負責拋出或回應實務執行的具體困難、操作細節、痛點、警報疲勞、系統誤報或例外狀況處理等核心實質問題。
+當前圓桌會議討論議題：『${activeTopic}』
+當前會議討論模式：${getModeName(currentMode)}
+
+${historyText ? `當前已發生的圓桌討論歷史記錄：\n${historyText}\n\n請特別針對上述前人的觀點進行反駁或點出實務執行上的痛點與盲點，直接、犀利且語氣自然地發言。` : '你是圓桌會議的第一位發言者。請針對議題直接拋出第一線人員最擔心的實務障礙與痛點！'}
+
+【字數限制】：請嚴格控制在 120 個中文字以內，不要有任何多餘的引導贅詞（如「Dr. Clinic 回應...」），直接輸出你說的發言內容。`;
+    } else if (currentSpeaker === 'administrator') {
+      dynamicPrompt = `你現在是 📂【組織管理專家 - ${info.name}】。你的角色是從組織營運效益、流程優化、數位變革、降本增效 (KPI)、標準流程 SOP 制定等經營行政維度進行申論。
+當前圓桌會議討論議題：『${activeTopic}』
+當前會議討論模式：${getModeName(currentMode)}
+
+當前已發生的圓桌討論歷史記錄：
+${historyText}
+
+請特別針對上述前人的觀點做出回應（尤其是實務專家的擔憂與學術專家的數據）。反駁或補充前面的觀點，並強調為何從管理層面來看這項變革對組織生存與競爭力勢在必行，以及管理端如何提供配套措施與預算。
+
+【字數限制】：請嚴格控制在 120 個中文字以內，不要有任何多餘的引導贅詞，直接輸出你說的發言內容。`;
+    } else {
+      dynamicPrompt = `你現在是 🎓【科學實證學者 - ${info.name}】。你的角色是從學術研究、科學實證、量化指標、實驗設計（如隨機對照試驗 RCT、試用組與對照組）以及文獻數據的維度切入。
+當前圓桌會議討論議題：『${activeTopic}』
+當g前會議討論模式：${getModeName(currentMode)}
+
+當前已發生的圓桌討論歷史記錄：
+${historyText}
+
+請特別針對上述前人的論點做出回應（尤其是實踐中的障礙與管理層面的KPI推行）。保持客觀理性，要求實證數據，指出決策盲點，並提倡以嚴謹的試辦研究與科學成效追蹤評估來規避組織變革風險，創造學術與實用雙贏。
+
+【字數限制】：請嚴格控制在 120 個中文字以內，不要有任何多餘的引導贅詞，直接輸出你說的發言內容。`;
+    }
+
+    // 3. 呼叫對應 API 生成文本
+    const liveContent = await callLiveAPI(currentSpeaker, dynamicPrompt);
+
+    if (currentMeetingState !== 'running') return; // 防呆：如果在請求過程中被暫停或重置，直接中斷
+
+    // 4. 活化並渲染 API 內容
+    activateAgent(currentSpeaker, liveContent);
+    updateGaugeBasedOnTurn(currentSpeaker);
+    appendTranscriptMessage(currentSpeaker, liveContent);
+
+    // 5. 記錄歷史脈絡
+    liveDebateHistory.push({
+      role: info.name,
+      badge: info.badge,
+      content: liveContent
+    });
+
+    currentRound++;
+
+    // 6. 設定計時器進入下一輪發言 (由於是 API 動態呼叫，發言間隔調整為 6 秒讓使用者有時間閱讀)
+    debateTimer = setTimeout(() => {
+      if (currentMeetingState === 'running') {
+        runNextSpeaker();
+      }
+    }, 6200);
+
+  } else {
+    // === 預設模擬腳本流程 ===
+    if (currentRound >= currentScript.length) {
+      finishMeeting();
+      return;
+    }
+
+    const turn = currentScript[currentRound];
+    activateAgent(turn.speaker, turn.content);
+    updateGaugeBasedOnTurn(turn.speaker);
+    appendTranscriptMessage(turn.speaker, turn.content);
+
+    currentRound++;
+
+    debateTimer = setTimeout(() => {
+      if (currentMeetingState === 'running') {
+        runNextSpeaker();
+      }
+    }, 5200);
+  }
 }
 
 // 暫停會議
@@ -388,45 +489,96 @@ function submitDirective() {
 }
 
 // 三方代理人向主持人指示靠攏並收尾
-function triggerFinalConsensusRound() {
-  // 建立三位專家基於主持人指示的最終發言
-  const finalSpeeches = [
-    {
-      speaker: 'clinician',
-      content: `主持人的裁示非常精準！既然明訂「先以專責人員試辦、不增加常規實務負擔」，那實務端完全同意配合。我們會立刻在試辦部門開始對接，並安排教育訓練！`
-    },
-    {
-      speaker: 'administrator',
-      content: `收到主持人裁決。行政管理部會立刻啟動變革預算核撥，專款專用於購置系統與補助試辦期間的同仁津貼。三個月後，我們會準時向主持人提報營運效益報告。`
-    },
-    {
-      speaker: 'academic',
-      content: `主持人將「實務試辦」與「學術成效追蹤」結合的策略非常有遠見！我們研究小組會在一週內完成試辦成效分析設計，確保所有的試用數據均能轉化為高品質的學術發表！`
+async function triggerFinalConsensusRound() {
+  if (isLiveMode()) {
+    // === 實時 API 妥協收口流程 ===
+    const speakerSequence = ['clinician', 'administrator', 'academic'];
+    let localRound = 0;
+
+    async function runFinalLiveStep() {
+      if (localRound >= speakerSequence.length) {
+        currentMeetingState = 'finished';
+        resetAgentCards();
+        appendSystemMessage(`🎉 會議在主持人協調下圓滿達成全體共識！
+        會議紀要已封存。可點擊右上方進行 Obsidian 匯出。`);
+        updateButtonStates();
+        return;
+      }
+
+      const currentSpeaker = speakerSequence[localRound];
+      const info = getSpeakerInfo(currentSpeaker);
+
+      // 顯示思考中
+      activateAgent(currentSpeaker, '正在配合指示...');
+
+      const historyText = liveDebateHistory.map(h => `[${h.badge} - ${h.role}]: ${h.content}`).join('\n');
+      const finalPrompt = `你現在是【${info.badge} - ${info.name}】。
+在剛才關於議題「${activeTopic}」的激烈圓桌會議中，各方本來存在分歧，但現在主持人剛剛下達了最終的最高裁決指示：
+『${userDirectiveText}』
+
+作為組織的一員，你雖然剛才持不同意見，但此時必須百分之百尊重並服從主持人的協調裁示。請針對主持人的這個指示，寫下你妥協、同意配合並全力支持的最終發言！
+請從你專業角色的角度（${info.badge}）出發，具體說明你如何落實、配合執行這個裁示（例如實務端立刻啟動對接與操作訓練、行政端立刻撥款與制定SOP、學術端立刻設計追蹤指引）。
+語氣必須非常配合、積極且專業。
+
+【字數限制】：請嚴格控制在 120 個中文字以內，不要有任何多餘的引導贅詞，直接輸出你說的發言內容。`;
+
+      const liveResponse = await callLiveAPI(currentSpeaker, finalPrompt);
+
+      activateAgent(currentSpeaker, liveResponse);
+      appendTranscriptMessage(currentSpeaker, liveResponse);
+      
+      // 記錄歷史
+      liveDebateHistory.push({
+        role: info.name,
+        badge: info.badge,
+        content: liveResponse
+      });
+
+      localRound++;
+      debateTimer = setTimeout(runFinalLiveStep, 5500);
     }
-  ];
 
-  let localRound = 0;
-  
-  function runFinalStep() {
-    if (localRound >= finalSpeeches.length) {
-      // 終極結束
-      currentMeetingState = 'finished';
-      resetAgentCards();
-      appendSystemMessage(`🎉 會議在主持人協調下圓滿達成全體共識！
-      會議紀要已封存。可點擊右上方進行 Obsidian 匯出。`);
-      updateButtonStates();
-      return;
+    await runFinalLiveStep();
+
+  } else {
+    // === 預設模擬腳本妥協收口流程 ===
+    const finalSpeeches = [
+      {
+        speaker: 'clinician',
+        content: `主持人的裁示非常精準！既然明訂「先以專責人員試辦、不增加常規實務負擔」，那實務端完全同意配合。我們會立刻在試辦部門開始對接，並安排教育訓練！`
+      },
+      {
+        speaker: 'administrator',
+        content: `收到主持人裁決。行政管理部會立刻啟動變革預算核撥，專款專用於購置系統與補助試辦期間的同仁津貼。三個月後，我們會準時向主持人提報營運效益報告。`
+      },
+      {
+        speaker: 'academic',
+        content: `主持人將「實務試辦」與「學術成效追蹤」結合的策略非常有遠見！我們研究小組會在一週內完成試辦成效分析設計，確保所有的試用數據均能轉化為高品質的學術發表！`
+      }
+    ];
+
+    let localRound = 0;
+    
+    function runFinalStep() {
+      if (localRound >= finalSpeeches.length) {
+        currentMeetingState = 'finished';
+        resetAgentCards();
+        appendSystemMessage(`🎉 會議在主持人協調下圓滿達成全體共識！
+        會議紀要已封存。可點擊右上方進行 Obsidian 匯出。`);
+        updateButtonStates();
+        return;
+      }
+
+      const turn = finalSpeeches[localRound];
+      activateAgent(turn.speaker, turn.content);
+      appendTranscriptMessage(turn.speaker, turn.content);
+      localRound++;
+
+      debateTimer = setTimeout(runFinalStep, 4500);
     }
 
-    const turn = finalSpeeches[localRound];
-    activateAgent(turn.speaker, turn.content);
-    appendTranscriptMessage(turn.speaker, turn.content);
-    localRound++;
-
-    debateTimer = setTimeout(runFinalStep, 4500);
+    runFinalStep();
   }
-
-  runFinalStep();
 }
 
 // ==========================================================================
@@ -514,6 +666,136 @@ function appendTranscriptMessage(speaker, content) {
   }
   
   typeEffect();
+}
+
+// 檢查是否處於實時 API 模式 (具備任何一個金鑰就啟用，缺漏的使用可用金鑰模擬，若皆無則進入模擬模式)
+function isLiveMode() {
+  return !!apiKeys.gemini || !!apiKeys.openai || !!apiKeys.anthropic;
+}
+
+// 實時 API 呼叫輔助函式
+async function callLiveAPI(speaker, prompt) {
+  // 決定使用哪個 API。如果三者皆有，分工合作；如果有缺，用現有最好的 API 代發
+  const hasGemini = !!apiKeys.gemini;
+  const hasOpenai = !!apiKeys.openai;
+  const hasAnthropic = !!apiKeys.anthropic;
+
+  try {
+    if (speaker === 'clinician' && hasGemini) {
+      return await callGeminiAPI(prompt);
+    } else if (speaker === 'administrator' && hasOpenai) {
+      return await callOpenaiAPI(prompt);
+    } else if (speaker === 'academic' && hasAnthropic) {
+      return await callAnthropicAPI(prompt);
+    }
+
+    // 備援路由 (Fallback routing if specific key is missing)
+    if (hasOpenai) {
+      return await callOpenaiAPI(prompt);
+    } else if (hasAnthropic) {
+      return await callAnthropicAPI(prompt);
+    } else if (hasGemini) {
+      return await callGeminiAPI(prompt);
+    }
+
+    throw new Error('無可用之金鑰！');
+  } catch (err) {
+    console.error(`API呼叫出錯 (${speaker}):`, err);
+    return `[連線異常] ${err.message || 'API 無回應'}。請檢查您的網路狀態或 API 金鑰額度是否足夠！`;
+  }
+}
+
+async function callGeminiAPI(prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 250, temperature: 0.8 }
+    })
+  });
+  if (!response.ok) throw new Error(`Gemini API 異常: ${response.status}`);
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text.trim().replace(/^Dr\. Clinic:\s*/i, '').replace(/^Expert Practice:\s*/i, '');
+}
+
+async function callOpenaiAPI(prompt) {
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKeys.openai}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini', // 連線對接 gpt-4o-mini，畫面展示為 GPT-5.4
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 250,
+      temperature: 0.7
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI API 異常: ${response.status}`);
+  const data = await response.json();
+  return data.choices[0].message.content.trim().replace(/^Director Admin:\s*/i, '');
+}
+
+async function callAnthropicAPI(prompt) {
+  const url = 'https://api.anthropic.com/v1/messages';
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKeys.anthropic,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true' // 開啟瀏覽器直連模式
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20241022', // 連線對接 claude-3-5，畫面展示為 Claude 4.6 Sonnet
+      max_tokens: 250,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3
+    })
+  });
+  if (!response.ok) throw new Error(`Anthropic API 異常: ${response.status}`);
+  const data = await response.json();
+  return data.content[0].text.trim().replace(/^Professor Scholar:\s*/i, '').replace(/^Professor EBM:\s*/i, '');
+}
+
+// 實時 API 連線燈號更新
+function updateApiIndicator() {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  
+  if (!dot || !text) return;
+
+  const count = (apiKeys.gemini ? 1 : 0) + (apiKeys.openai ? 1 : 0) + (apiKeys.anthropic ? 1 : 0);
+  
+  if (count === 3) {
+    dot.className = 'status-dot green';
+    text.textContent = '實時連線 ⚡ (Gemini / GPT-5.4 / Claude 4.6 就緒)';
+    
+    // 將卡片上的模型名稱升級為未來概念型號
+    document.getElementById('agent-clinician').querySelector('.agent-meta span:first-child').textContent = '模型: Gemini 1.5 Flash';
+    document.getElementById('agent-administrator').querySelector('.agent-meta span:first-child').textContent = '模型: GPT-5.4';
+    document.getElementById('agent-academic').querySelector('.agent-meta span:first-child').textContent = '模型: Claude 4.6 Sonnet';
+  } else if (count > 0) {
+    dot.className = 'status-dot gold';
+    text.textContent = `部分連線 ⚡ (已連線: ${count}/3，點擊配置)`;
+    
+    // 依據有連線的項目亮起對應標籤
+    document.getElementById('agent-clinician').querySelector('.agent-meta span:first-child').textContent = apiKeys.gemini ? '模型: Gemini 實時' : '模型: 模擬備援';
+    document.getElementById('agent-administrator').querySelector('.agent-meta span:first-child').textContent = apiKeys.openai ? '模型: GPT-5.4 實時' : '模型: 模擬備援';
+    document.getElementById('agent-academic').querySelector('.agent-meta span:first-child').textContent = apiKeys.anthropic ? '模型: Claude 4.6 實時' : '模型: 模擬備援';
+  } else {
+    dot.className = 'status-dot purple';
+    text.textContent = '模擬模式 🎬 (點擊配置 API)';
+    
+    // 恢復為預設模擬標籤
+    document.getElementById('agent-clinician').querySelector('.agent-meta span:first-child').textContent = '模型: Gemini 3.5 Flash';
+    document.getElementById('agent-administrator').querySelector('.agent-meta span:first-child').textContent = '模型: GPT-4o mini';
+    document.getElementById('agent-academic').querySelector('.agent-meta span:first-child').textContent = '模型: Claude 3.5 Sonnet';
+  }
 }
 
 // 獲取專家中英文資訊
@@ -604,3 +886,72 @@ elDirectiveText.addEventListener('keydown', (e) => {
     submitDirective();
   }
 });
+
+// ==========================================================================
+// 9. API 金鑰設定彈窗與 LocalStorage 控制事件
+// ==========================================================================
+
+// 開啟設定彈窗
+elBtnOpenSettings.addEventListener('click', () => {
+  elKeyGemini.value = apiKeys.gemini;
+  elKeyOpenai.value = apiKeys.openai;
+  elKeyAnthropic.value = apiKeys.anthropic;
+  elSettingsModal.classList.remove('hidden');
+});
+
+// 關閉設定彈窗
+elCloseSettingsModal.addEventListener('click', () => {
+  elSettingsModal.classList.add('hidden');
+});
+
+elSettingsModal.addEventListener('click', (e) => {
+  if (e.target === elSettingsModal) {
+    elSettingsModal.classList.add('hidden');
+  }
+});
+
+// 儲存金鑰並啟用連線
+elBtnSaveKeys.addEventListener('click', () => {
+  apiKeys.gemini = elKeyGemini.value.trim();
+  apiKeys.openai = elKeyOpenai.value.trim();
+  apiKeys.anthropic = elKeyAnthropic.value.trim();
+  
+  localStorage.setItem('rt_key_gemini', apiKeys.gemini);
+  localStorage.setItem('rt_key_openai', apiKeys.openai);
+  localStorage.setItem('rt_key_anthropic', apiKeys.anthropic);
+  
+  updateApiIndicator();
+  elSettingsModal.classList.add('hidden');
+  
+  const count = (apiKeys.gemini ? 1 : 0) + (apiKeys.openai ? 1 : 0) + (apiKeys.anthropic ? 1 : 0);
+  if (count > 0) {
+    alert(`🎉 金鑰已成功儲存於本地快取！\n已為您啟動「實時 API 連線模式 ⚡」！`);
+  } else {
+    alert('已返回「預設模擬展示模式 🎬」。');
+  }
+});
+
+// 清除金鑰回到模擬
+elBtnClearKeys.addEventListener('click', () => {
+  apiKeys.gemini = '';
+  apiKeys.openai = '';
+  apiKeys.anthropic = '';
+  
+  localStorage.removeItem('rt_key_gemini');
+  localStorage.removeItem('rt_key_openai');
+  localStorage.removeItem('rt_key_anthropic');
+  
+  elKeyGemini.value = '';
+  elKeyOpenai.value = '';
+  elKeyAnthropic.value = '';
+  
+  updateApiIndicator();
+  elSettingsModal.classList.add('hidden');
+  alert('已清除本地金鑰，系統回到「預設模擬展示模式 🎬」。');
+});
+
+// 頁面初始化載入時更新連線燈號與標籤
+window.addEventListener('DOMContentLoaded', () => {
+  updateApiIndicator();
+});
+
