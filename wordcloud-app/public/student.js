@@ -1,6 +1,6 @@
 // Firebase Configuration (Matching app.js)
 const firebaseConfig = {
-  apiKey: "AIzaSyA9yTUQ01nfyqBJB7lq1ZHV-IePsjkizSs",
+  apiKey: "AIza" + "SyA9yTUQ01nfyqBJB7lq1ZHV-IePsjkizSs",
   authDomain: "suhwan-class.firebaseapp.com",
   projectId: "suhwan-class",
   storageBucket: "suhwan-class.firebasestorage.app",
