@@ -5,5 +5,15 @@ service cloud.firestore {
     match /wordcloud_inputs/{document} {
       allow read, write: if true;
     }
+    
+    // 允許任何人讀寫課堂問題庫 questions
+    match /questions/{document} {
+      allow read, write: if true;
+    }
+    
+    // 允許任何人讀寫系統狀態 system_state
+    match /system_state/{document} {
+      allow read, write: if true;
+    }
   }
 }

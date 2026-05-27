@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Roundtable | 圓桌決策會議室</title>
+  <meta name="description" content="多代理人圓桌決策會議室 - 串聯實務、管理與學術的 AI 決策沙盒">
+  <!-- 載入 Google 字型 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- 載入 Lucide 圖標以提升介面質感 -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- 頂部導航欄 -->
+    <header class="app-header">
+      <div class="logo-section">
+        <div class="logo-glow"></div>
+        <i data-lucide="bot" class="logo-icon animate-pulse-slow"></i>
+        <h1>AI Agent <span>Roundtable</span></h1>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot green"></span>
+        <span class="status-text">三方 API 就緒 (模擬模式)</span>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <!-- 左側：控制面板與圓桌區域 -->
+      <section class="left-section">
+        
+        <!-- 議題控制面板 -->
+        <div class="glass-card control-panel">
+          <h2 class="panel-title"><i data-lucide="sliders-horizontal"></i> 會議發起與配置</h2>
+          
+          <div class="input-group">
+            <label for="meeting-topic">💡 決策議題</label>
+            <input type="text" id="meeting-topic" placeholder="例如：評估是否全面推行週休三日與彈性遠距工作制度..." value="評估是否全面推行週休三日與彈性遠距工作制度">
+          </div>
+
+          <div class="form-row">
+            <div class="input-group">
+              <label for="debate-mode">🔥 會議模式</label>
+              <select id="debate-mode">
+                <option value="debate" selected>⚡ 激進衝突辯論模式 (強調盲點與交鋒)</option>
+                <option value="synergy">🤝 和諧共識模式 (快速尋求最佳折衷)</option>
+                <option value="academic">🎓 學術與實證審查模式 (文獻證據至上)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button id="btn-start" class="btn btn-primary"><i data-lucide="play"></i> 開始會議</button>
+            <button id="btn-pause" class="btn btn-secondary" disabled><i data-lucide="pause"></i> 暫停會議</button>
+            <button id="btn-reset" class="btn btn-danger"><i data-lucide="rotate-ccw"></i> 重設</button>
+          </div>
+        </div>
+
+        <!-- 圓桌對決核心競技場 -->
+        <div class="roundtable-arena">
+          <div class="arena-glow"></div>
+          
+          <!-- 圓桌核心 (中央指針與光暈) -->
+          <div class="center-table" id="center-table">
+            <div class="table-surface">
+              <div class="core-logo">
+                <div class="core-wave"></div>
+                <i data-lucide="cpu" class="core-icon"></i>
+              </div>
+            </div>
+            <!-- 共識指針儀表 -->
+            <div class="consensus-gauge">
+              <div class="gauge-label">共識指針</div>
+              <div class="gauge-bar">
+                <div class="gauge-indicator" id="gauge-indicator" style="transform: rotate(0deg);"></div>
+              </div>
+              <div class="gauge-status" id="gauge-status">討論中...</div>
+            </div>
+          </div>
+
+          <!-- 120 度角均勻分佈的三個 AI 專家卡片 -->
+          
+          <!-- 🔧 現場實務專家卡片 (Expert Practice) - 頂部 -->
+          <div class="agent-card clinician" id="agent-clinician">
+            <div class="agent-glow"></div>
+            <div class="agent-badge"><i data-lucide="wrench"></i> 現場實務</div>
+            <div class="avatar-wrapper">
+              <img src="https://images.unsplash.com/photo-1581092921461-eab62e97a780?auto=format&fit=crop&q=80&w=200" alt="Expert Practice Avatar" class="agent-avatar">
+              <div class="pulse-ring"></div>
+            </div>
+            <h3 class="agent-name">Expert Practice</h3>
+            <p class="agent-desc">第一線現場專家 & 實務導師</p>
+            <div class="agent-meta">
+              <span>模型: Gemini 3.5 Flash</span>
+              <span>溫度: 0.85</span>
+            </div>
+            <!-- 當前發言框 -->
+            <div class="agent-bubble" id="bubble-clinician">
+              <div class="bubble-arrow"></div>
+              <p class="bubble-content">正在等待會議發起...</p>
+            </div>
+          </div>
+
+          <!-- 📂 組織管理專家卡片 (Director Admin) - 左下 -->
+          <div class="agent-card administrator" id="agent-administrator">
+            <div class="agent-glow"></div>
+            <div class="agent-badge"><i data-lucide="folder-kanban"></i> 組織管理</div>
+            <div class="avatar-wrapper">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200" alt="Director Admin Avatar" class="agent-avatar">
+              <div class="pulse-ring"></div>
+            </div>
+            <h3 class="agent-name">Director Admin</h3>
+            <p class="agent-desc">組織行政主管 & 營運策略長</p>
+            <div class="agent-meta">
+              <span>模型: GPT-4o mini</span>
+              <span>溫度: 0.50</span>
+            </div>
+            <!-- 當前發言框 -->
+            <div class="agent-bubble" id="bubble-administrator">
+              <div class="bubble-arrow"></div>
+              <p class="bubble-content">正在準備營運與行政評估...</p>
+            </div>
+          </div>
+
+          <!-- 🎓 學術實證學者卡片 (Professor Scholar) - 右下 -->
+          <div class="agent-card academic" id="agent-academic">
+            <div class="agent-glow"></div>
+            <div class="agent-badge"><i data-lucide="graduation-cap"></i> 學術實證</div>
+            <div class="avatar-wrapper">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200" alt="Professor Scholar Avatar" class="agent-avatar">
+              <div class="pulse-ring"></div>
+            </div>
+            <h3 class="agent-name">Professor Scholar</h3>
+            <p class="agent-desc">科學實證學者 & 研究機構教授</p>
+            <div class="agent-meta">
+              <span>模型: Claude 3.5 Sonnet</span>
+              <span>溫度: 0.30</span>
+            </div>
+            <!-- 當前發言框 -->
+            <div class="agent-bubble" id="bubble-academic">
+              <div class="bubble-arrow"></div>
+              <p class="bubble-content">正在檢索學術文獻與實證數據...</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 右側：會議紀錄側邊欄 -->
+      <section class="right-section">
+        <div class="glass-card transcript-container">
+          <div class="transcript-header">
+            <h2><i data-lucide="history"></i> 會議即時速記 (Transcript)</h2>
+            <div class="actions">
+              <button id="btn-export-obsidian" class="btn-icon" title="同步到 Obsidian" disabled>
+                <i data-lucide="file-down"></i> 同步
+              </button>
+            </div>
+          </div>
+
+          <!-- 會議對話串流區 -->
+          <div class="transcript-stream" id="transcript-stream">
+            <div class="stream-empty" id="stream-empty">
+              <i data-lucide="message-square" class="empty-icon"></i>
+              <p>尚未開始會議。請在左側輸入議題並點擊「開始會議」啟動對決！</p>
+            </div>
+          </div>
+
+          <!-- 主持人指示介入面板 (Moderator's Directive) -->
+          <div class="glass-card directive-panel" id="directive-panel">
+            <div class="panel-subtitle">
+              <i data-lucide="gavel" style="color: #ff7b7b;"></i> <span>主持人裁示 / 介入區</span>
+            </div>
+            <div class="directive-input-area">
+              <textarea id="directive-text" placeholder="當會議暫停時，在此輸入您的「主持人裁示」，引導討論方向或下達結論。" disabled></textarea>
+              <button id="btn-submit-directive" class="btn btn-primary btn-sm" disabled>
+                <i data-lucide="send"></i> 下達指示
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 頁尾 -->
+    <footer class="app-footer">
+      <p>&copy; 2026 AI Agent Roundtable Room. Designed for Practical, Administrative & Academic Decision Making.</p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // 初始化 Lucide 圖標
+    lucide.createIcons();
+  </script>
+</body>
+</html>

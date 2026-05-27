@@ -3,6 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "site": "suhwan-class",
     "public": "public",
     "ignore": [
       "firebase.json",

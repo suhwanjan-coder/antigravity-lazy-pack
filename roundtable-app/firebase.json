@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "site": "suhwan-roundtable",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "README.md",
+      "task.md",
+      "implementation_plan.md",
+      "walkthrough.md"
+    ]
+  }
+}

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌌 即時課堂填答 — Anti-Gravity 2 Premium</title>
+  
+  <!-- Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Shared Style with customized modifications for mobile -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  
+  <style>
+    /* Specific adjustments to optimize student mobile viewport experience */
+    body {
+      align-items: center;
+      padding: 0;
+      background: #04020a;
+    }
+    
+    .student-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 16px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .student-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .student-header .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    
+    .student-header h1 {
+      font-family: var(--font-family-title);
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, #ffffff 40%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+    }
+    
+    .student-header i {
+      font-size: 1.6rem;
+      color: var(--color-secondary);
+    }
+    
+    .student-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    
+    .student-card {
+      width: 100%;
+      min-height: 280px;
+      justify-content: center;
+      padding: 32px 24px;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    }
+    
+    .student-card.fade-out {
+      opacity: 0;
+      transform: scale(0.92) translateY(10px);
+    }
+    
+    .student-card.fade-in {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    
+    .question-title {
+      font-family: var(--font-family-title);
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    /* Option buttons for Poll Question type */
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+    
+    .btn-option {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      padding: 16px 20px;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-family-body);
+      transition: var(--transition-smooth);
+    }
+    
+    .btn-option:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--color-secondary);
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(6, 182, 212, 0.15);
+    }
+    
+    .btn-option:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    .btn-option.selected {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(168, 85, 247, 0.15) 100%);
+      border-color: var(--color-secondary);
+      color: #ffffff;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+    }
+    
+    .option-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      display: inline-block;
+      flex-shrink: 0;
+      position: relative;
+      transition: var(--transition-smooth);
+    }
+    
+    .btn-option.selected .option-dot {
+      border-color: var(--color-secondary);
+      background: var(--color-secondary);
+      box-shadow: 0 0 8px var(--color-secondary);
+    }
+    
+    /* Input Form for Word Cloud Question type */
+    .word-input-container {
+      width: 100%;
+    }
+    
+    .student-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 16px 20px;
+      color: #ffffff;
+      font-size: 1rem;
+      width: 100%;
+      outline: none;
+      font-family: var(--font-family-body);
+      text-align: center;
+      transition: var(--transition-smooth);
+    }
+    
+    .student-input:focus {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: var(--color-primary);
+      box-shadow: 0 0 16px var(--color-primary-glow);
+    }
+    
+    .student-submit-btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 16px;
+      justify-content: center;
+      font-size: 1rem;
+    }
+    
+    /* Waiting and success state styling */
+    .state-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+      padding: 20px 0;
+    }
+    
+    .state-icon {
+      font-size: 3.5rem;
+      margin-bottom: 8px;
+    }
+    
+    .success-icon {
+      color: #22c55e;
+      text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+      animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .waiting-icon {
+      color: var(--color-secondary);
+      text-shadow: 0 0 20px var(--color-secondary-glow);
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+    
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 15px var(--color-secondary-glow)); }
+    }
+    
+    .success-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: var(--font-family-title);
+    }
+    
+    .success-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    .student-footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: rgba(165, 161, 192, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated Background Gradients -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  
+  <div class="student-container">
+    <!-- Header -->
+    <header class="student-header">
+      <div class="logo">
+        <i class="fa-solid fa-cloud-bolt icon-glow"></i>
+        <h1>課堂即時填答</h1>
+      </div>
+      <p class="subtitle">多人即時連線互動系統</p>
+    </header>
+
+    <!-- Main Dynamic Content Card -->
+    <main class="student-main">
+      <div class="glass-card student-card" id="student-card">
+        <!-- Default Loading State -->
+        <div class="state-container" id="loading-state">
+          <div class="spinner"></div>
+          <p id="loading-text">正在載入雲端問題...</p>
+        </div>
+        
+        <!-- Dynamic content will be injected here via student.js -->
+      </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="student-footer">
+      <p>© 2026 Anti-Gravity 2 Premium. Powered by Firebase.</p>
+    </footer>
+  </div>
+
+  <!-- Custom student logic -->
+  <script src="student.js"></script>
+</body>
+</html>

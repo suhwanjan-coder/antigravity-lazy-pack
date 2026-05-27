@@ -1,0 +1,996 @@
+/* AI Agent Roundtable - Premium Dark & Glassmorphism Theme */
+
+/* ==========================================================================
+   1. 核心變數與基礎設定
+   ========================================================================== */
+:root {
+  --font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  
+  /* 曜石深太空配色 */
+  --bg-gradient: radial-gradient(circle at 50% 50%, #16122c 0%, #070510 100%);
+  --bg-sidebar: rgba(10, 8, 20, 0.6);
+  --bg-card: rgba(22, 18, 42, 0.35);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  
+  /* 精緻文字色彩 */
+  --text-main: #f0f6fc;
+  --text-muted: #8b949e;
+  --text-desc: #b1bac4;
+
+  /* 霓虹專家配色 */
+  --clinician-color: #00f3ff;
+  --clinician-glow: rgba(0, 243, 255, 0.4);
+  --clinician-bg: rgba(0, 243, 255, 0.03);
+
+  --administrator-color: #00ff87;
+  --administrator-glow: rgba(0, 255, 135, 0.4);
+  --administrator-bg: rgba(0, 255, 135, 0.03);
+
+  --academic-color: #bd00ff;
+  --academic-glow: rgba(189, 0, 255, 0.4);
+  --academic-bg: rgba(189, 0, 255, 0.03);
+
+  /* 通用霓虹發光 */
+  --glow-intensity-sm: 0 0 15px;
+  --glow-intensity-lg: 0 0 35px;
+  
+  --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background: #070510;
+  background-image: var(--bg-gradient);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* 網頁捲軸美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   2. 通用玻璃擬態與按鈕樣式
+   ========================================================================== */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: var(--transition-smooth);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* 按鈕樣式 */
+.btn {
+  font-family: var(--font-family);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #7b2cbf 0%, #5a189a 100%);
+  color: white;
+  box-shadow: 0 0 15px rgba(123, 44, 191, 0.4);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(123, 44, 191, 0.6);
+  background: linear-gradient(135deg, #9d4edd 0%, #7b2cbf 100%);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: rgba(230, 76, 76, 0.15);
+  border: 1px solid rgba(230, 76, 76, 0.3);
+  color: #ff7b7b;
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(230, 76, 76, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   3. 版面佈局
+   ========================================================================== */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 20px;
+  gap: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.logo-glow {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: #7b2cbf;
+  filter: blur(20px);
+  border-radius: 50%;
+  z-index: -1;
+  left: 0;
+}
+
+.logo-icon {
+  color: #9d4edd;
+  width: 28px;
+  height: 28px;
+}
+
+.logo-section h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.logo-section h1 span {
+  background: linear-gradient(90deg, #9d4edd, #00f3ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-dot.green {
+  background: #00ff87;
+  box-shadow: 0 0 10px #00ff87;
+}
+
+.status-text {
+  font-size: 0.8rem;
+  color: var(--text-desc);
+}
+
+.main-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px;
+  flex: 1;
+}
+
+/* ==========================================================================
+   4. 左側欄：控制面板
+   ========================================================================== */
+.left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.control-panel {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #b1bac4;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 12px;
+}
+
+.panel-title i {
+  color: #9d4edd;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.input-group label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.input-group input,
+.input-group select,
+.directive-input-area textarea {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.95rem;
+  transition: var(--transition-smooth);
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.directive-input-area textarea:focus {
+  border-color: #7b2cbf;
+  box-shadow: 0 0 10px rgba(123, 44, 191, 0.2);
+  outline: none;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   5. 圓桌競技場 (圓桌與 AI 卡片定位)
+   ========================================================================== */
+.roundtable-arena {
+  flex: 1;
+  position: relative;
+  min-height: 520px;
+  background: rgba(10, 8, 20, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  margin-top: 10px;
+}
+
+.arena-glow {
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(123, 44, 191, 0.08) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 中央圓桌 */
+.center-table {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(22, 18, 42, 0.9) 0%, rgba(10, 8, 20, 0.95) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.03);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: var(--transition-smooth);
+}
+
+.table-surface {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.core-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.core-wave {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid rgba(123, 44, 191, 0.3);
+  animation: ripple 2s infinite linear;
+}
+
+.core-icon {
+  color: #7b2cbf;
+  width: 32px;
+  height: 32px;
+  z-index: 2;
+  transition: var(--transition-smooth);
+}
+
+/* 共識指針儀表 */
+.consensus-gauge {
+  position: absolute;
+  top: 200px;
+  width: 150px;
+  text-align: center;
+  background: rgba(10, 8, 20, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+.gauge-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.gauge-bar {
+  position: relative;
+  width: 100px;
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  margin: 0 auto 6px;
+  overflow: visible;
+}
+
+.gauge-indicator {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff7b7b;
+  box-shadow: 0 0 10px #ff7b7b;
+  top: -2px;
+  left: calc(50% - 6px);
+  transition: var(--transition-smooth);
+}
+
+.gauge-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ff7b7b;
+}
+
+/* ==========================================================================
+   6. AI 專家卡片定位與發光狀態
+   ========================================================================== */
+.agent-card {
+  position: absolute;
+  width: 220px;
+  background: rgba(22, 18, 42, 0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  transition: var(--transition-smooth);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* 定位三位專家 (120 度角) */
+
+/* 🏥 臨床 (頂部) */
+.agent-card.clinician {
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-color: rgba(0, 243, 255, 0.15);
+}
+
+/* 📂 行政 (左下) */
+.agent-card.administrator {
+  bottom: 25px;
+  left: 3%;
+  border-color: rgba(0, 255, 135, 0.15);
+}
+
+/* 🎓 學術 (右下) */
+.agent-card.academic {
+  bottom: 25px;
+  right: 3%;
+  border-color: rgba(189, 0, 255, 0.15);
+}
+
+/* 懸停微光動效 */
+.agent-card:hover {
+  transform: translate(0, -5px);
+}
+.agent-card.clinician:hover {
+  box-shadow: 0 10px 30px rgba(0, 243, 255, 0.2);
+  border-color: var(--clinician-color);
+}
+.agent-card.administrator:hover {
+  box-shadow: 0 10px 30px rgba(0, 255, 135, 0.2);
+  border-color: var(--administrator-color);
+}
+.agent-card.academic:hover {
+  box-shadow: 0 10px 30px rgba(189, 0, 255, 0.2);
+  border-color: var(--academic-color);
+}
+
+/* 發言狀態 active */
+.agent-card.active {
+  z-index: 5;
+  transform: scale(1.04);
+}
+
+.agent-card.clinician.active {
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.4);
+  border-color: var(--clinician-color);
+  background: rgba(0, 243, 255, 0.05);
+}
+
+.agent-card.administrator.active {
+  box-shadow: 0 0 35px rgba(0, 255, 135, 0.4);
+  border-color: var(--administrator-color);
+  background: rgba(0, 255, 135, 0.05);
+}
+
+.agent-card.academic.active {
+  box-shadow: 0 0 35px rgba(189, 0, 255, 0.4);
+  border-color: var(--academic-color);
+  background: rgba(189, 0, 255, 0.05);
+}
+
+/* 專家內部組件 */
+.agent-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.clinician .agent-badge { background: rgba(0, 243, 255, 0.12); color: var(--clinician-color); }
+.administrator .agent-badge { background: rgba(0, 255, 135, 0.12); color: var(--administrator-color); }
+.academic .agent-badge { background: rgba(189, 0, 255, 0.12); color: var(--academic-color); }
+
+.avatar-wrapper {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.agent-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: var(--transition-smooth);
+}
+
+.clinician.active .agent-avatar { border-color: var(--clinician-color); }
+.administrator.active .agent-avatar { border-color: var(--administrator-color); }
+.academic.active .agent-avatar { border-color: var(--academic-color); }
+
+/* 脈衝漣漪動畫 */
+.pulse-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: var(--transition-smooth);
+}
+
+.active .pulse-ring {
+  animation: ripple 1.8s infinite cubic-bezier(0.24, 0, 0.38, 1);
+}
+
+.clinician .pulse-ring { border: 2px solid var(--clinician-color); }
+.administrator .pulse-ring { border: 2px solid var(--administrator-color); }
+.academic .pulse-ring { border: 2px solid var(--academic-color); }
+
+.agent-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.agent-desc {
+  font-size: 0.75rem;
+  color: var(--text-desc);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.agent-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 6px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   7. AI 發言對話框 (Speech Bubbles)
+   ========================================================================== */
+.agent-bubble {
+  position: absolute;
+  background: rgba(10, 8, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  max-width: 250px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 顯示對話框 active */
+.agent-card.active .agent-bubble {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 頂部臨床對話框定位 */
+.clinician .agent-bubble {
+  top: 100%;
+  margin-top: 12px;
+  border-color: rgba(0, 243, 255, 0.3);
+}
+.clinician .agent-bubble .bubble-arrow {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent rgba(10, 8, 20, 0.95) transparent;
+}
+
+/* 左下行政對話框定位 */
+.administrator .agent-bubble {
+  left: 100%;
+  top: 10px;
+  margin-left: 14px;
+  border-color: rgba(0, 255, 135, 0.3);
+}
+.administrator .agent-bubble .bubble-arrow {
+  position: absolute;
+  right: 100%;
+  top: 25px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent rgba(10, 8, 20, 0.95) transparent transparent;
+}
+
+/* 右下學術對話框定位 */
+.academic .agent-bubble {
+  right: 100%;
+  top: 10px;
+  margin-right: 14px;
+  border-color: rgba(189, 0, 255, 0.3);
+}
+.academic .agent-bubble .bubble-arrow {
+  position: absolute;
+  left: 100%;
+  top: 25px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent transparent rgba(10, 8, 20, 0.95);
+}
+
+.bubble-content {
+  color: var(--text-main);
+  text-align: left;
+}
+
+/* ==========================================================================
+   8. 右側欄：會議速記面板 (Transcript Stream)
+   ========================================================================== */
+.right-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 650px;
+}
+
+.transcript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 12px;
+}
+
+.transcript-header h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #b1bac4;
+}
+
+.transcript-header h2 i {
+  color: #9d4edd;
+}
+
+/* 同步/導出按鈕樣式 */
+.btn-icon {
+  background: rgba(123, 44, 191, 0.15);
+  border: 1px solid rgba(123, 44, 191, 0.3);
+  color: #9d4edd;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: #7b2cbf;
+  color: white;
+  box-shadow: 0 0 15px rgba(123, 44, 191, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* 速記訊息流動區 */
+.transcript-stream {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 480px;
+}
+
+.stream-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--text-muted);
+  height: 100%;
+  text-align: center;
+  padding: 40px;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.3;
+  color: #9d4edd;
+}
+
+/* 對話紀錄卡片 */
+.transcript-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 12px 16px;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.msg-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.msg-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.msg-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 卡片左右側彩色霓虹燈條 */
+.transcript-msg.clinician {
+  border-left: 3px solid var(--clinician-color);
+  background: rgba(0, 243, 255, 0.01);
+}
+.transcript-msg.clinician .msg-name { color: var(--clinician-color); }
+.transcript-msg.clinician .msg-badge { background: rgba(0, 243, 255, 0.12); color: var(--clinician-color); }
+
+.transcript-msg.administrator {
+  border-left: 3px solid var(--administrator-color);
+  background: rgba(0, 255, 135, 0.01);
+}
+.transcript-msg.administrator .msg-name { color: var(--administrator-color); }
+.transcript-msg.administrator .msg-badge { background: rgba(0, 255, 135, 0.12); color: var(--administrator-color); }
+
+.transcript-msg.academic {
+  border-left: 3px solid var(--academic-color);
+  background: rgba(189, 0, 255, 0.01);
+}
+.transcript-msg.academic .msg-name { color: var(--academic-color); }
+.transcript-msg.academic .msg-badge { background: rgba(189, 0, 255, 0.12); color: var(--academic-color); }
+
+/* 主席介入/系統訊息樣式 */
+.transcript-msg.system {
+  border: 1px dashed rgba(255, 123, 123, 0.3);
+  background: rgba(255, 123, 123, 0.05);
+}
+.transcript-msg.system .msg-name { color: #ff7b7b; }
+.transcript-msg.system .msg-badge { background: rgba(255, 123, 123, 0.15); color: #ff7b7b; }
+
+.msg-body {
+  font-size: 0.9rem;
+  color: var(--text-desc);
+  white-space: pre-line;
+}
+
+/* ==========================================================================
+   9. 院長指示介入面板
+   ========================================================================== */
+.directive-panel {
+  padding: 16px;
+  background: rgba(255, 123, 123, 0.01);
+  border: 1px solid rgba(255, 123, 123, 0.08);
+}
+
+.panel-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ff7b7b;
+  margin-bottom: 10px;
+}
+
+.directive-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.directive-input-area textarea {
+  width: 100%;
+  height: 60px;
+  resize: none;
+  font-size: 0.85rem;
+  background: rgba(0,0,0,0.4);
+}
+
+/* ==========================================================================
+   10. 頁尾與動畫定義
+   ========================================================================== */
+.app-footer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* 動畫定義 */
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ==========================================================================
+   11. 響應式佈局 (Responsive Design)
+   ========================================================================== */
+@media (max-width: 1200px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+  .roundtable-arena {
+    min-height: 480px;
+  }
+  .agent-card {
+    width: 200px;
+    padding: 15px;
+  }
+  .agent-card.administrator {
+    left: 2%;
+  }
+  .agent-card.academic {
+    right: 2%;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 手機版將圓桌改為垂直流動式版面，確保完美的可讀性 */
+  .roundtable-arena {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: auto;
+    padding: 30px 10px;
+    align-items: center;
+  }
+  .center-table {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin-bottom: 20px;
+  }
+  .agent-card {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 350px;
+  }
+  .clinician .agent-bubble,
+  .administrator .agent-bubble,
+  .academic .agent-bubble {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    margin: 10px 0 0 0 !important;
+    max-width: 100%;
+    pointer-events: auto;
+  }
+  .bubble-arrow {
+    display: none;
+  }
+}
