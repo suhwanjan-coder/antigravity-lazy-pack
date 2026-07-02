@@ -439,7 +439,8 @@ function drawWordCloud(activeResponses) {
       fontFamily: "'Outfit', 'Inter', 'Noto Sans TC', sans-serif",
       fontWeight: '600',
       color: function () {
-        const colors = ['#a855f7', '#06b6d4', '#ec4899', '#22c55e', '#3b82f6', '#ffffff', '#e9d5ff', '#cffafe'];
+        // 怡仁 palette — dark teal/green + gold, readable on the light background
+        const colors = ['#1a7f6b', '#12a594', '#0f6e5c', '#2c9c86', '#c68a00', '#1f3a34', '#3a7d6f', '#d98e04'];
         return colors[Math.floor(Math.random() * colors.length)];
       },
       rotateRatio: 0.35,
@@ -1061,7 +1062,7 @@ btnDownload.addEventListener("click", () => {
   tempCanvas.height = canvas.height;
   const tempCtx = tempCanvas.getContext("2d");
   
-  tempCtx.fillStyle = "#060410";
+  tempCtx.fillStyle = "#f2faf8";
   tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
   tempCtx.drawImage(canvas, 0, 0);
   
