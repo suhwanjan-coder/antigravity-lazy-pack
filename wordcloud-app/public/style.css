@@ -1159,3 +1159,21 @@ body { background: var(--bg-color) !important; }
   -webkit-text-fill-color: transparent !important;
 }
 .student-footer, .student-footer p { color: var(--text-secondary) !important; }
+
+/* --- 怡仁 theme: fix leftover dark/purple spots --- */
+.btn-primary {
+  background: linear-gradient(135deg, #1a7f6b 0%, #12a594 100%) !important;
+  color: #ffffff !important;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #17705f 0%, #0f6e5c 100%) !important;
+  box-shadow: 0 6px 20px rgba(26, 127, 107, 0.35) !important;
+}
+.canvas-container { background: #ffffff !important; }
+.canvas-overlay { background: rgba(242, 250, 248, 0.88) !important; }
+.canvas-overlay #overlay-text, .canvas-overlay p { color: var(--text-secondary) !important; }
+.spinner { border-color: rgba(26, 127, 107, 0.18) !important; border-top-color: var(--color-primary) !important; }
+/* retint the wordcloud badge + question hover from purple to teal */
+.badge-wordcloud { background: rgba(18,165,148,0.12) !important; color: #0f6e5c !important; border-color: rgba(18,165,148,0.25) !important; }
+.question-item:hover { background: #e6f2ef !important; border-color: var(--surface-line) !important; }
+.modal-card { box-shadow: 0 20px 50px rgba(26,127,107,0.18) !important; }
