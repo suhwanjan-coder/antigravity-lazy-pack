@@ -256,6 +256,8 @@ function renderQuestionsList() {
     let badgeClass = "badge-poll", badgeText = "單選投票";
     if (q.type === "wordcloud") { badgeClass = "badge-wordcloud"; badgeText = "文字雲"; }
     else if (q.type === "rating") { badgeClass = "badge-rating"; badgeText = "評分量表"; }
+    else if (q.type === "qa") { badgeClass = "badge-qa"; badgeText = "提問互動"; }
+    else if (q.type === "quiz") { badgeClass = "badge-quiz"; badgeText = "搶答測驗"; }
     
     html += `
       <div class="question-item ${isActive}" data-id="${q.id}">
@@ -388,6 +390,18 @@ function updateVisualizations() {
     hideOverlay();
 
     renderRatingChart(currentQ, activeResponses);
+  } else if (currentQ.type === "qa") {
+    // Hide Canvas & render audience questions sorted by upvotes
+    canvas.style.display = "none";
+    hideOverlay();
+
+    renderQAList(currentQ, activeResponses);
+  } else if (currentQ.type === "quiz") {
+    // Hide Canvas & render quiz results (correct answer + leaderboard)
+    canvas.style.display = "none";
+    hideOverlay();
+
+    renderQuizResults(currentQ, activeResponses);
   }
 }
 
@@ -566,6 +580,121 @@ function renderRatingChart(question, responses) {
       ${barsHtml}
     `;
   }
+
+  canvas.parentElement.appendChild(chartWrapper);
+
+  requestAnimationFrame(() => {
+    chartWrapper.querySelectorAll(".poll-bar-fill").forEach(fill => {
+      const widthVal = fill.getAttribute("data-width");
+      setTimeout(() => {
+        fill.style.width = widthVal;
+      }, 50);
+    });
+  });
+}
+
+// Escape user-submitted text before injecting into innerHTML (Q&A / quiz nicknames)
+function escapeHtml(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// Render audience Q&A list, sorted by upvotes (teacher display)
+function renderQAList(question, responses) {
+  const sorted = [...responses].sort((a, b) => (b.votes || 0) - (a.votes || 0));
+
+  const chartWrapper = document.createElement("div");
+  chartWrapper.id = "poll-results-container";
+  chartWrapper.className = "poll-results-container";
+
+  if (sorted.length === 0) {
+    chartWrapper.innerHTML = `
+      <div class="state-container" style="color:var(--text-secondary);">
+        <i class="fa-regular fa-comments state-icon waiting-icon" style="font-size:3rem;"></i>
+        <h3 style="color:white;">等待學員提問...</h3>
+        <p>請學員在手機輸入想問的問題，並可為別人的問題按讚，熱門問題會浮到最上面！</p>
+      </div>
+    `;
+  } else {
+    const itemsHtml = sorted.map(r => `
+      <div class="qa-item">
+        <span class="qa-votes"><i class="fa-solid fa-thumbs-up"></i> ${r.votes || 0}</span>
+        <span class="qa-text">${escapeHtml(r.word)}</span>
+      </div>
+    `).join("");
+    chartWrapper.innerHTML = `
+      <h3 style="color: white; font-family:var(--font-family-title); margin-bottom:12px; font-weight:600; font-size:1.15rem; border-left:3px solid var(--color-secondary); padding-left:10px;">
+        觀眾提問（${sorted.length} 則 · 依讚數排序）
+      </h3>
+      ${itemsHtml}
+    `;
+  }
+
+  canvas.parentElement.appendChild(chartWrapper);
+}
+
+// Render quiz results: per-option bars with the correct answer highlighted + a session leaderboard
+function renderQuizResults(question, responses) {
+  const options = question.options || [];
+  const counts = {};
+  options.forEach(opt => counts[opt] = 0);
+  responses.forEach(res => {
+    if (counts[res.word] !== undefined) counts[res.word]++;
+  });
+  const total = responses.length;
+
+  const barsHtml = options.map((opt, idx) => {
+    const count = counts[opt];
+    const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+    const isCorrect = idx === question.correctIndex;
+    return `
+      <div class="poll-bar-item">
+        <div class="poll-bar-label">
+          <span>${isCorrect ? "✅ " : ""}${escapeHtml(opt)}</span>
+          <span class="poll-bar-count">${count} (${percent}%)</span>
+        </div>
+        <div class="poll-bar-track">
+          <div class="poll-bar-fill ${isCorrect ? "correct" : ""}" style="width: 0%;" data-width="${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Leaderboard: total correct answers per nickname across ALL quiz questions in this session
+  const quizResponses = responsesData.filter(r =>
+    (currentSession ? r.session === currentSession : true) &&
+    r.nickname && typeof r.correct === "boolean"
+  );
+  const scores = {};
+  quizResponses.forEach(r => {
+    if (scores[r.nickname] === undefined) scores[r.nickname] = 0;
+    if (r.correct) scores[r.nickname] += 1;
+  });
+  const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const medals = ["🥇", "🥈", "🥉"];
+  const lbHtml = leaderboard.length
+    ? leaderboard.map((e, i) => `
+        <div class="lb-item">
+          <span class="lb-rank">${medals[i] || ("#" + (i + 1))}</span>
+          <span class="lb-name">${escapeHtml(e[0])}</span>
+          <span class="lb-score">${e[1]} 分</span>
+        </div>`).join("")
+    : `<p style="color:var(--text-secondary); text-align:center; padding:8px 0;">尚無計分資料</p>`;
+
+  const chartWrapper = document.createElement("div");
+  chartWrapper.id = "poll-results-container";
+  chartWrapper.className = "poll-results-container";
+  chartWrapper.innerHTML = `
+    <h3 style="color: white; font-family:var(--font-family-title); margin-bottom:10px; font-weight:600; font-size:1.15rem; border-left:3px solid var(--color-secondary); padding-left:10px;">
+      本題作答：${total} 人 · ✅ 為正解
+    </h3>
+    ${barsHtml}
+    <h3 style="color: white; font-family:var(--font-family-title); margin:20px 0 10px; font-weight:600; font-size:1.15rem; border-left:3px solid #fde68a; padding-left:10px;">
+      🏆 排行榜（本場次累計答對數）
+    </h3>
+    <div class="leaderboard">${lbHtml}</div>
+  `;
 
   canvas.parentElement.appendChild(chartWrapper);
 
@@ -769,6 +898,7 @@ btnImportSubmit.addEventListener("click", async () => {
         type: q.type,
         options: q.options || null,
         scale: q.scale || null,
+        correctIndex: (q.correctIndex != null ? q.correctIndex : null),
         session: session,
         round: 0
       });
@@ -818,23 +948,33 @@ function parseQuestionsText(inputText) {
     // Parse Type
     let type = "wordcloud"; // Default
     const isRating = /[\(（](評分|量表|評分量表)[\)）]/.test(questionText);
+    const isQA = /[\(（](提問|問答|發問|Q&A|QA)[\)）]/i.test(questionText);
+    const isQuiz = /[\(（](搶答|測驗|考題|quiz)[\)）]/i.test(questionText);
     if (isRating) {
       type = "rating";
+    } else if (isQA) {
+      type = "qa";
+    } else if (isQuiz) {
+      type = "quiz";
     } else if (questionText.includes("(投票)") || questionText.includes("（投票）") || lines.length > 1) {
       type = "poll";
     }
 
     // Strip type descriptors from clean text
-    questionText = questionText.replace(/\s*[\(（](文字雲|投票|評分量表|評分|量表)[\)）]/g, "").trim();
+    questionText = questionText.replace(/\s*[\(（](文字雲|投票|評分量表|評分|量表|提問|問答|發問|Q&A|QA|搶答|測驗|考題|quiz)[\)）]/gi, "").trim();
     
     const options = [];
-    if (type === "poll") {
-      // Parse following lines as options
+    let correctIndex = -1;
+    if (type === "poll" || type === "quiz") {
+      // Parse following lines as options. For quiz, a leading * marks the correct answer.
       for (let i = 1; i < lines.length; i++) {
-        let opt = lines[i];
-        // Strip prefixes like A., B., -, * or C.
-        opt = opt.replace(/^([A-Z]\.|\-|\*)\s*/i, "").trim();
+        let opt = lines[i].trim();
+        let isCorrect = false;
+        if (opt.startsWith("*")) { isCorrect = true; opt = opt.slice(1).trim(); }
+        // Strip prefixes like "A.", "B、", "-"
+        opt = opt.replace(/^([A-Z][\.\、]?|\-)\s*/i, "").trim();
         if (opt) {
+          if (isCorrect && type === "quiz") correctIndex = options.length;
           options.push(opt);
         }
       }
@@ -847,8 +987,12 @@ function parseQuestionsText(inputText) {
       type: type
     };
     
-    if (type === "poll" && options.length > 0) {
+    if ((type === "poll" || type === "quiz") && options.length > 0) {
       questionObj.options = options;
+    }
+
+    if (type === "quiz") {
+      questionObj.correctIndex = correctIndex;
     }
 
     if (type === "rating") {

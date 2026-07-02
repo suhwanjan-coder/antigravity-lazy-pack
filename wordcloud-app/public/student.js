@@ -27,6 +27,14 @@ if (!deviceId) {
 let currentActiveQuestionId = null;
 let currentQuestionData = null;
 let currentStudentSession = null; // Import session stamp from active_state
+let qaUnsub = null; // Firestore listener for the live Q&A list (detached when leaving the question)
+
+// Escape user text before injecting into innerHTML
+function escapeHtmlS(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 // Handle smooth screen transition animations
 function transitionCardContent(newHtmlCallback) {
@@ -83,6 +91,8 @@ db.collection(collectionName).doc("active_state").onSnapshot((doc) => {
 
 // 2. Fetch active question details from Firestore (within wordcloud_inputs collection)
 async function fetchQuestionDetails(questionId) {
+  // Detach any previous Q&A live listener when the question changes
+  if (qaUnsub) { qaUnsub(); qaUnsub = null; }
   try {
     const doc = await db.collection(collectionName).doc(`question_${questionId}`).get();
     if (doc.exists) {
@@ -110,13 +120,19 @@ function renderActiveQuestion() {
   const round = currentQuestionData.round || 0;
   // Key includes session + round so a new import or a teacher "reset" lets the student answer again
   const answeredKey = `answered_${qId}_${currentStudentSession || "s0"}_r${round}`;
-  const hasAnswered = localStorage.getItem(answeredKey);
 
+  // Q&A is a live board (submit once + upvote others), not a one-shot — always render it
+  if (currentQuestionData.type === "qa") {
+    transitionCardContent(() => renderQAInput());
+    return;
+  }
+
+  const hasAnswered = localStorage.getItem(answeredKey);
   if (hasAnswered) {
     showSuccessState(localStorage.getItem(`${answeredKey}_val`) || "答案已送出");
     return;
   }
-  
+
   transitionCardContent(() => {
     if (currentQuestionData.type === "wordcloud") {
       renderWordCloudInput();
@@ -124,6 +140,8 @@ function renderActiveQuestion() {
       renderPollButtons();
     } else if (currentQuestionData.type === "rating") {
       renderRatingButtons();
+    } else if (currentQuestionData.type === "quiz") {
+      renderQuizButtons();
     }
   });
 }
@@ -233,6 +251,182 @@ function renderRatingButtons() {
         submitAnswer(val);
       }, 300);
     });
+  });
+}
+
+// Render Q&A: submit a question + live list with upvotes
+function renderQAInput() {
+  const qId = currentQuestionData.id;
+  const round = currentQuestionData.round || 0;
+  const submitKey = `qa_submitted_${qId}_${currentStudentSession || "s0"}_r${round}`;
+  const alreadySubmitted = localStorage.getItem(submitKey);
+
+  card.innerHTML = `
+    <h2 class="question-title">${escapeHtmlS(currentQuestionData.text)}</h2>
+    ${alreadySubmitted ? `<p class="rating-hint" style="margin-top:0;">✅ 你已提問，繼續幫別人的問題按讚吧！</p>` : `
+    <div class="word-input-container">
+      <input type="text" id="qa-input" class="student-input" placeholder="輸入你想問的問題" maxlength="80">
+      <button id="btn-qa-submit" class="btn-primary student-submit-btn">
+        <i class="fa-solid fa-paper-plane"></i> 送出問題
+      </button>
+    </div>`}
+    <div id="qa-list" class="qa-list-student"></div>
+    <p class="rating-hint">點 👍 幫你想問的問題按讚，讓它浮到最前面</p>
+  `;
+
+  if (!alreadySubmitted) {
+    const input = document.getElementById("qa-input");
+    const btn = document.getElementById("btn-qa-submit");
+    btn.addEventListener("click", async () => {
+      const val = input.value.trim();
+      if (!val) { alert("請輸入問題再送出！"); return; }
+      btn.disabled = true;
+      try {
+        await db.collection(collectionName).add({
+          questionId: qId,
+          word: val,
+          votes: 0,
+          session: currentStudentSession || null,
+          round: round,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          deviceId: deviceId
+        });
+        localStorage.setItem(submitKey, "true");
+        renderQAInput();
+      } catch (e) {
+        alert("送出失敗：" + e.message);
+        btn.disabled = false;
+      }
+    });
+    input.addEventListener("keypress", (e) => { if (e.key === "Enter") btn.click(); });
+  }
+
+  // Live list of submitted questions with upvote buttons
+  if (qaUnsub) { qaUnsub(); qaUnsub = null; }
+  qaUnsub = db.collection(collectionName)
+    .where("questionId", "==", qId)
+    .onSnapshot((snap) => {
+      const items = [];
+      snap.forEach(d => {
+        const x = d.data();
+        if (x.word && !x.isQuestion && !x.isSystemState &&
+            (currentStudentSession ? x.session === currentStudentSession : true) &&
+            ((x.round || 0) === round)) {
+          items.push({ id: d.id, ...x });
+        }
+      });
+      items.sort((a, b) => (b.votes || 0) - (a.votes || 0));
+      const listEl = document.getElementById("qa-list");
+      if (!listEl) return;
+      listEl.innerHTML = items.length ? items.map(it => {
+        const voted = localStorage.getItem(`qa_voted_${it.id}`);
+        return `<div class="qa-row">
+          <button class="qa-vote-btn ${voted ? "voted" : ""}" data-id="${it.id}" ${voted ? "disabled" : ""}>
+            <i class="fa-solid fa-thumbs-up"></i> <span>${it.votes || 0}</span>
+          </button>
+          <span class="qa-row-text">${escapeHtmlS(it.word)}</span>
+        </div>`;
+      }).join("") : `<p style="color:var(--text-secondary); text-align:center; font-size:0.85rem; padding:8px 0;">還沒有問題，當第一個發問的人！</p>`;
+
+      listEl.querySelectorAll(".qa-vote-btn").forEach(b => {
+        b.addEventListener("click", async () => {
+          const id = b.getAttribute("data-id");
+          if (localStorage.getItem(`qa_voted_${id}`)) return;
+          localStorage.setItem(`qa_voted_${id}`, "true");
+          b.disabled = true;
+          b.classList.add("voted");
+          try {
+            await db.collection(collectionName).doc(id).update({
+              votes: firebase.firestore.FieldValue.increment(1)
+            });
+          } catch (e) { console.error("Upvote failed:", e); }
+        });
+      });
+    });
+}
+
+// Render quiz: ask for a nickname once, then show option buttons with correct/wrong feedback
+function renderQuizButtons() {
+  const nickname = localStorage.getItem("student-nickname");
+
+  if (!nickname) {
+    card.innerHTML = `
+      <h2 class="question-title">搶答前，先取個暱稱</h2>
+      <div class="word-input-container">
+        <input type="text" id="nickname-input" class="student-input" placeholder="你的暱稱（會顯示在排行榜）" maxlength="12">
+        <button id="btn-nickname" class="btn-primary student-submit-btn">開始搶答</button>
+      </div>
+    `;
+    const inp = document.getElementById("nickname-input");
+    const b = document.getElementById("btn-nickname");
+    b.addEventListener("click", () => {
+      const n = inp.value.trim();
+      if (!n) { alert("請輸入暱稱！"); return; }
+      localStorage.setItem("student-nickname", n);
+      renderQuizButtons();
+    });
+    inp.addEventListener("keypress", (e) => { if (e.key === "Enter") b.click(); });
+    return;
+  }
+
+  const options = currentQuestionData.options || [];
+  const optionsHtml = options.map((opt, idx) => `
+    <button class="btn-option" data-idx="${idx}">
+      <span class="option-dot"></span> ${escapeHtmlS(opt)}
+    </button>
+  `).join("");
+
+  card.innerHTML = `
+    <h2 class="question-title">${escapeHtmlS(currentQuestionData.text)}</h2>
+    <p class="rating-hint" style="margin-top:0; margin-bottom:14px;">搶答者：${escapeHtmlS(nickname)}</p>
+    <div class="options-list">${optionsHtml}</div>
+  `;
+
+  const btns = card.querySelectorAll(".btn-option");
+  btns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      btns.forEach(b => b.disabled = true);
+      btn.classList.add("selected");
+      const idx = parseInt(btn.getAttribute("data-idx"), 10);
+      const val = options[idx];
+      const correct = idx === currentQuestionData.correctIndex;
+      setTimeout(() => submitQuizAnswer(val, correct, nickname), 250);
+    });
+  });
+}
+
+function submitQuizAnswer(answerValue, correct, nickname) {
+  const qId = currentQuestionData.id;
+  const round = currentQuestionData.round || 0;
+
+  card.innerHTML = `<div class="state-container"><div class="spinner"></div><p>送出中...</p></div>`;
+
+  db.collection(collectionName).add({
+    questionId: qId,
+    word: answerValue,
+    correct: correct,
+    nickname: nickname,
+    session: currentStudentSession || null,
+    round: round,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    deviceId: deviceId
+  }).then(() => {
+    const answeredKey = `answered_${qId}_${currentStudentSession || "s0"}_r${round}`;
+    localStorage.setItem(answeredKey, "true");
+    localStorage.setItem(`${answeredKey}_val`, answerValue);
+    transitionCardContent(() => {
+      card.innerHTML = `
+        <div class="state-container">
+          <i class="fa-solid ${correct ? "fa-circle-check" : "fa-circle-xmark"} state-icon" style="color:${correct ? "#22c55e" : "#ef4444"}; text-shadow:0 0 20px ${correct ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"};"></i>
+          <h2 class="success-title">${correct ? "答對了！ 🎉" : "答錯了"}</h2>
+          <p class="success-desc">你的答案：<strong style="color:var(--color-secondary);">「 ${escapeHtmlS(answerValue)} 」</strong></p>
+          <p class="success-desc" style="font-size:0.8rem; margin-top:10px;">看講台大螢幕排行榜，換下一題會自動跳轉！</p>
+        </div>
+      `;
+    });
+  }).catch((e) => {
+    alert("送出失敗：" + e.message);
+    renderActiveQuestion();
   });
 }
 
