@@ -793,6 +793,12 @@ body {
   border: 1px solid rgba(6, 182, 212, 0.2);
 }
 
+.badge-rating {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 .btn-broadcast {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -937,5 +943,30 @@ body {
 }
 .offline-banner.hidden {
   display: none !important;
+}
+
+/* Rating results: big average number on the teacher display */
+.rating-average {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.rating-average-num {
+  font-family: var(--font-family-title);
+  font-size: 3.4rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, #fde68a 0%, var(--color-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 24px rgba(6, 182, 212, 0.25);
+}
+
+.rating-average-lbl {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 

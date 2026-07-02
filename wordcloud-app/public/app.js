@@ -245,8 +245,9 @@ function renderQuestionsList() {
   questionsData.forEach(q => {
     const isActive = q.id === selectedQuestionId ? "active" : "";
     const isBroadcasting = q.id === broadcastingQuestionId;
-    const badgeClass = q.type === "wordcloud" ? "badge-wordcloud" : "badge-poll";
-    const badgeText = q.type === "wordcloud" ? "文字雲" : "單選投票";
+    let badgeClass = "badge-poll", badgeText = "單選投票";
+    if (q.type === "wordcloud") { badgeClass = "badge-wordcloud"; badgeText = "文字雲"; }
+    else if (q.type === "rating") { badgeClass = "badge-rating"; badgeText = "評分量表"; }
     
     html += `
       <div class="question-item ${isActive}" data-id="${q.id}">
@@ -369,6 +370,12 @@ function updateVisualizations() {
     hideOverlay();
     
     renderPollBarChart(currentQ, activeResponses);
+  } else if (currentQ.type === "rating") {
+    // Hide Canvas & render average score + distribution bars
+    canvas.style.display = "none";
+    hideOverlay();
+
+    renderRatingChart(currentQ, activeResponses);
   }
 }
 
@@ -482,6 +489,74 @@ function renderPollBarChart(question, responses) {
   canvas.parentElement.appendChild(chartWrapper);
   
   // Trigger bar expansion animations on the next repaint
+  requestAnimationFrame(() => {
+    chartWrapper.querySelectorAll(".poll-bar-fill").forEach(fill => {
+      const widthVal = fill.getAttribute("data-width");
+      setTimeout(() => {
+        fill.style.width = widthVal;
+      }, 50);
+    });
+  });
+}
+
+// Render rating results: big average number + per-score distribution bars
+function renderRatingChart(question, responses) {
+  const scale = question.scale || 5;
+
+  const counts = {};
+  for (let i = 1; i <= scale; i++) counts[i] = 0;
+  let sum = 0, valid = 0;
+  responses.forEach(res => {
+    const n = parseInt(String(res.word).trim(), 10);
+    if (n >= 1 && n <= scale) {
+      counts[n]++;
+      sum += n;
+      valid++;
+    }
+  });
+  const avg = valid > 0 ? (sum / valid).toFixed(2) : "—";
+
+  let barsHtml = "";
+  for (let i = scale; i >= 1; i--) {
+    const count = counts[i];
+    const percent = valid > 0 ? Math.round((count / valid) * 100) : 0;
+    barsHtml += `
+      <div class="poll-bar-item">
+        <div class="poll-bar-label">
+          <span>${i} 分</span>
+          <span class="poll-bar-count">${count} 人 (${percent}%)</span>
+        </div>
+        <div class="poll-bar-track">
+          <div class="poll-bar-fill" style="width: 0%;" data-width="${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  const chartWrapper = document.createElement("div");
+  chartWrapper.id = "poll-results-container";
+  chartWrapper.className = "poll-results-container";
+
+  if (valid === 0) {
+    chartWrapper.innerHTML = `
+      <div class="state-container" style="color:var(--text-secondary);">
+        <i class="fa-solid fa-star-half-stroke state-icon waiting-icon" style="font-size:3rem;"></i>
+        <h3 style="color:white;">等待評分資料投射...</h3>
+        <p>目前此題尚無人評分，請請學員使用手機評分！</p>
+      </div>
+    `;
+  } else {
+    chartWrapper.innerHTML = `
+      <div class="rating-average">
+        <span class="rating-average-num">${avg}</span>
+        <span class="rating-average-lbl">平均分（滿分 ${scale}）· 共 ${valid} 人評分</span>
+      </div>
+      ${barsHtml}
+    `;
+  }
+
+  canvas.parentElement.appendChild(chartWrapper);
+
   requestAnimationFrame(() => {
     chartWrapper.querySelectorAll(".poll-bar-fill").forEach(fill => {
       const widthVal = fill.getAttribute("data-width");
@@ -690,7 +765,8 @@ btnImportSubmit.addEventListener("click", async () => {
         id: q.id,
         text: q.text,
         type: q.type,
-        options: q.options || null
+        options: q.options || null,
+        scale: q.scale || null
       });
     });
     
@@ -746,12 +822,15 @@ function parseQuestionsText(inputText) {
     
     // Parse Type
     let type = "wordcloud"; // Default
-    if (questionText.includes("(投票)") || questionText.includes("（投票）") || lines.length > 1) {
+    const isRating = /[\(（](評分|量表|評分量表)[\)）]/.test(questionText);
+    if (isRating) {
+      type = "rating";
+    } else if (questionText.includes("(投票)") || questionText.includes("（投票）") || lines.length > 1) {
       type = "poll";
     }
-    
+
     // Strip type descriptors from clean text
-    questionText = questionText.replace(/\s*[\(（](文字雲|投票)[\)）]/g, "").trim();
+    questionText = questionText.replace(/\s*[\(（](文字雲|投票|評分量表|評分|量表)[\)）]/g, "").trim();
     
     const options = [];
     if (type === "poll") {
@@ -776,7 +855,11 @@ function parseQuestionsText(inputText) {
     if (type === "poll" && options.length > 0) {
       questionObj.options = options;
     }
-    
+
+    if (type === "rating") {
+      questionObj.scale = 5;
+    }
+
     results.push(questionObj);
     index++;
   });

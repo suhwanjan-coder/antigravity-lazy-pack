@@ -116,6 +116,8 @@ function renderActiveQuestion() {
       renderWordCloudInput();
     } else if (currentQuestionData.type === "poll") {
       renderPollButtons();
+    } else if (currentQuestionData.type === "rating") {
+      renderRatingButtons();
     }
   });
 }
@@ -190,6 +192,40 @@ function renderPollButtons() {
       setTimeout(() => {
         submitAnswer(val);
       }, 300); // Small delay for hover-dot click animation effect
+    });
+  });
+}
+
+// Render Rating scale buttons (1 ~ scale, default 5) with emoji faces
+function renderRatingButtons() {
+  const scale = currentQuestionData.scale || 5;
+  const faces = ["😞", "🙁", "😐", "🙂", "😍"];
+  let btnsHtml = "";
+  for (let i = 1; i <= scale; i++) {
+    const face = scale === 5 ? faces[i - 1] : "";
+    btnsHtml += `
+      <button class="rating-btn" data-value="${i}">
+        <span class="rating-face">${face}</span>
+        <span class="rating-num">${i}</span>
+      </button>
+    `;
+  }
+
+  card.innerHTML = `
+    <h2 class="question-title">${currentQuestionData.text}</h2>
+    <div class="rating-scale">${btnsHtml}</div>
+    <p class="rating-hint">請點選 1（最低）～ ${scale}（最高）</p>
+  `;
+
+  const btns = card.querySelectorAll(".rating-btn");
+  btns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      btns.forEach(b => b.disabled = true);
+      btn.classList.add("selected");
+      const val = btn.getAttribute("data-value");
+      setTimeout(() => {
+        submitAnswer(val);
+      }, 300);
     });
   });
 }
