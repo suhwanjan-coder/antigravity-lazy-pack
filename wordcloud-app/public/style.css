@@ -1177,3 +1177,14 @@ body { background: var(--bg-color) !important; }
 .badge-wordcloud { background: rgba(18,165,148,0.12) !important; color: #0f6e5c !important; border-color: rgba(18,165,148,0.25) !important; }
 .question-item:hover { background: #e6f2ef !important; border-color: var(--surface-line) !important; }
 .modal-card { box-shadow: 0 20px 50px rgba(26,127,107,0.18) !important; }
+
+/* --- 怡仁 theme: readable active question + badge text on light --- */
+.question-item.active,
+.question-item.active .question-item-text,
+.question-item .question-item-text { color: var(--text-primary) !important; }
+
+/* Badge text was tuned for a dark bg; darken for the light theme */
+.badge-poll { background: rgba(18,165,148,0.12) !important; color: #0e6f6f !important; border-color: rgba(18,165,148,0.25) !important; }
+.badge-rating { color: #8a5a00 !important; }
+.badge-qa { color: #15803d !important; }
+.badge-quiz { color: #9d266d !important; }
