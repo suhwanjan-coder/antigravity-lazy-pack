@@ -44,6 +44,7 @@ let questionsData = [];
 let responsesData = []; // All responses across questions (filtered locally)
 let selectedQuestionId = null; // Currently viewed question on dashboard
 let broadcastingQuestionId = null; // Question currently pushed to student mobile views
+let currentSession = null; // Import session stamp; questions + responses are scoped to it (no deletes needed)
 let redrawTimeout = null;
 let isOfflineMode = false; // Flag to indicate if database failed/offline
 
@@ -201,10 +202,12 @@ function startListeningToQuestions() {
     const data = doc.data();
     if (data && data.activeQuestionId) {
       broadcastingQuestionId = data.activeQuestionId;
+      currentSession = data.session || null;
       if (!selectedQuestionId) {
         selectedQuestionId = broadcastingQuestionId; // Sync view on initial load
       }
       renderQuestionsList();
+      updateVisualizations();
     }
   }, (error) => {
     console.error("Error reading system state:", error);
@@ -236,13 +239,18 @@ function startListeningToQuestions() {
 
 // --- 3. Render Questions List Sidebar UI ---
 function renderQuestionsList() {
-  if (questionsData.length === 0) {
+  // Only show questions from the current import session (older sessions are hidden, not deleted)
+  const visibleQuestions = currentSession
+    ? questionsData.filter(q => q.session === currentSession)
+    : questionsData;
+
+  if (visibleQuestions.length === 0) {
     questionsListContainer.innerHTML = `<p class="card-desc" style="text-align:center;">無任何課堂題目，請點擊右上角批次匯入！</p>`;
     return;
   }
 
   let html = "";
-  questionsData.forEach(q => {
+  visibleQuestions.forEach(q => {
     const isActive = q.id === selectedQuestionId ? "active" : "";
     const isBroadcasting = q.id === broadcastingQuestionId;
     let badgeClass = "badge-poll", badgeText = "單選投票";
@@ -336,8 +344,12 @@ function updateVisualizations() {
   const currentQ = questionsData.find(q => q.id === selectedQuestionId);
   if (!currentQ) return;
 
-  // Filter responses locally for the selected question
-  const activeResponses = responsesData.filter(res => res.questionId === selectedQuestionId);
+  // Filter responses locally for the selected question (scoped to current session + round)
+  const activeResponses = responsesData.filter(res =>
+    res.questionId === selectedQuestionId &&
+    (currentSession ? res.session === currentSession : true) &&
+    ((res.round || 0) === (currentQ.round || 0))
+  );
 
   // Update Stats Box
   const totalCount = activeResponses.length;
@@ -592,12 +604,15 @@ wordForm.addEventListener("submit", async (e) => {
   wordInput.disabled = true;
   
   try {
+    const cq = questionsData.find(q => q.id === selectedQuestionId);
     await db.collection(collectionName).add({
       questionId: selectedQuestionId,
       word: word,
+      session: currentSession || null,
+      round: (cq && cq.round) || 0,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-    
+
     // Reset Input
     wordInput.value = "";
     charCount.textContent = "0";
@@ -617,33 +632,25 @@ btnReset.addEventListener("click", async () => {
   const currentQ = questionsData.find(q => q.id === selectedQuestionId);
   const qText = currentQ ? currentQ.text : "當前題目";
   
-  if (!confirm(`⚠️ 確定要清除「 ${qText} 」的所有填答數據嗎？\n此動作無法復原！`)) {
+  if (!confirm(`⚠️ 確定要清除「 ${qText} 」目前的填答數據嗎？\n（舊資料會被隱藏、不刪除，畫面立即歸零）`)) {
     return;
   }
-  
+
   if (isOfflineMode) {
     clearOfflineResponses(selectedQuestionId);
     return;
   }
-  
+
   showOverlay("正在清除該題填答資料...");
-  
+
   try {
-    // Query responses associated with the selected question
-    const snapshot = await db.collection(collectionName)
-      .where("questionId", "==", selectedQuestionId)
-      .get();
-      
-    const batch = db.batch();
-    snapshot.docs.forEach(doc => {
-      // Safety filter: ensure we never delete question or system state configs
-      const data = doc.data();
-      if (!data.isQuestion && !data.isSystemState) {
-        batch.delete(doc.ref);
-      }
-    });
-    
-    await batch.commit();
+    // Bump this question's round instead of deleting (delete is disabled in rules).
+    // Responses carry the round they were sent under, so older ones are filtered out automatically.
+    const newRound = ((currentQ && currentQ.round) || 0) + 1;
+    await db.collection(collectionName)
+      .doc(`question_${selectedQuestionId}`)
+      .update({ round: newRound });
+    hideOverlay();
   } catch (error) {
     console.error("Clearing database error:", error);
     alert("清除失敗！請重試。");
@@ -746,18 +753,13 @@ btnImportSubmit.addEventListener("click", async () => {
       return;
     }
     
-    // Seeding Firestore Batch
+    // Seeding Firestore Batch — NO deletes (delete is disabled in the security rules).
+    // A fresh session stamp scopes the new questions + responses; old data is simply
+    // filtered out (hidden) rather than deleted, so nothing can be maliciously wiped.
+    const session = "s" + Date.now();
     const batch = db.batch();
-    
-    // First, clear existing questions from Firestore
-    const oldQSites = await db.collection(collectionName)
-      .where("isQuestion", "==", true)
-      .get();
-    oldQSites.docs.forEach(doc => {
-      batch.delete(doc.ref);
-    });
-    
-    // Seeding new questions
+
+    // Seed new questions (overwrite by id; stale old-session questions are filtered out on display)
     parsedQuestions.forEach(q => {
       const docRef = db.collection(collectionName).doc(`question_${q.id}`);
       batch.set(docRef, {
@@ -766,32 +768,25 @@ btnImportSubmit.addEventListener("click", async () => {
         text: q.text,
         type: q.type,
         options: q.options || null,
-        scale: q.scale || null
+        scale: q.scale || null,
+        session: session,
+        round: 0
       });
     });
-    
-    // Reset active broadcasting question to the first parsed question
+
+    // Reset active broadcasting question to the first parsed question, tagged with the new session
     const firstQId = parsedQuestions[0].id;
     const stateRef = db.collection(collectionName).doc("active_state");
-    batch.set(stateRef, { 
+    batch.set(stateRef, {
       isSystemState: true,
-      activeQuestionId: firstQId 
+      activeQuestionId: firstQId,
+      session: session
     });
-    
+
     await batch.commit();
-    
-    // Completely wipe all response data (ignore system configs and question docs)
-    const responsesSnapshot = await db.collection(collectionName).get();
-    const clearResponsesBatch = db.batch();
-    responsesSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (!data.isQuestion && !data.isSystemState) {
-        clearResponsesBatch.delete(doc.ref);
-      }
-    });
-    await clearResponsesBatch.commit();
-    
+
     // Reset states and close Modal
+    currentSession = session;
     selectedQuestionId = firstQId;
     importTextarea.value = "";
     importModal.classList.add("hidden");

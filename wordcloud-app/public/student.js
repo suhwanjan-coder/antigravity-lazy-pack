@@ -26,6 +26,7 @@ if (!deviceId) {
 // Local State
 let currentActiveQuestionId = null;
 let currentQuestionData = null;
+let currentStudentSession = null; // Import session stamp from active_state
 
 // Handle smooth screen transition animations
 function transitionCardContent(newHtmlCallback) {
@@ -45,8 +46,11 @@ db.collection(collectionName).doc("active_state").onSnapshot((doc) => {
   const data = doc.data();
   if (data && data.activeQuestionId) {
     const questionId = data.activeQuestionId;
-    if (questionId !== currentActiveQuestionId) {
+    const session = data.session || null;
+    // Re-fetch when the question OR the session changes (a new import re-uses ids like q1)
+    if (questionId !== currentActiveQuestionId || session !== currentStudentSession) {
       currentActiveQuestionId = questionId;
+      currentStudentSession = session;
       fetchQuestionDetails(questionId);
     }
   } else {
@@ -103,11 +107,13 @@ async function fetchQuestionDetails(questionId) {
 // 3. Check if answered and Render Question UI
 function renderActiveQuestion() {
   const qId = currentQuestionData.id;
-  const answeredKey = `answered_${qId}`;
+  const round = currentQuestionData.round || 0;
+  // Key includes session + round so a new import or a teacher "reset" lets the student answer again
+  const answeredKey = `answered_${qId}_${currentStudentSession || "s0"}_r${round}`;
   const hasAnswered = localStorage.getItem(answeredKey);
-  
+
   if (hasAnswered) {
-    showSuccessState(localStorage.getItem(`answered_val_${qId}`) || "答案已送出");
+    showSuccessState(localStorage.getItem(`${answeredKey}_val`) || "答案已送出");
     return;
   }
   
@@ -243,17 +249,21 @@ async function submitAnswer(answerValue) {
   `;
   
   try {
-    // Write answer response to Firestore
+    const round = currentQuestionData.round || 0;
+    // Write answer response to Firestore (tagged with session + round for scoping)
     await db.collection(collectionName).add({
       questionId: qId,
       word: answerValue,
+      session: currentStudentSession || null,
+      round: round,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       deviceId: deviceId
     });
-    
-    // Save state locally to prevent repeat voting
-    localStorage.setItem(`answered_${qId}`, "true");
-    localStorage.setItem(`answered_val_${qId}`, answerValue);
+
+    // Save state locally to prevent repeat voting (per session + round)
+    const answeredKey = `answered_${qId}_${currentStudentSession || "s0"}_r${round}`;
+    localStorage.setItem(answeredKey, "true");
+    localStorage.setItem(`${answeredKey}_val`, answerValue);
     
     // Render Success Page
     transitionCardContent(() => {
